@@ -577,7 +577,7 @@ function toB64(file){return new Promise((r,j)=>{const fr=new FileReader();fr.onl
 async function callAI(b64,mt){
   const res=await fetch("/.netlify/functions/claude",{
     method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,
+    body:JSON.stringify({model:"claude-sonnet-4-5",max_tokens:1500,
       system:`Extreu dades d'albarans. Respon NOMÉS amb JSON vàlid sense markdown.
 Format: {"proveedor":"nom","fecha":"DD/MM/YYYY","productos":[{"nombre":"nom","precio":0.00,"unitat":"kg/ud/L/cj"}]}
 Els preus han de ser PREUS UNITARIS en euros. Si un preu no és clar, posa null.`,
