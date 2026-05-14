@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>Preus · El Riuet</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--bg:#f5f2ee;--card:#fff;--border:#e8e2da;--text:#1a1714;--muted:#8a8278;--alert:#c94040;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+header{background:var(--text);color:#fff;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:sticky;top:0;z-index:200;}
+header h1{font-size:14px;font-weight:700;}
+header p{font-size:10px;color:#999;margin-top:1px;}
+.btn-sm{background:#333;border:none;color:#fff;font-family:'Syne',sans-serif;font-size:11px;font-weight:600;padding:7px 11px;border-radius:8px;cursor:pointer;white-space:nowrap;}
+.btn-sm:hover{background:#444;}
+
+nav{background:#fff;border-bottom:1px solid var(--border);display:flex;overflow-x:auto;position:sticky;top:57px;z-index:199;scrollbar-width:none;}
+nav::-webkit-scrollbar{display:none;}
+.tab{font-family:'Syne',sans-serif;font-size:12px;font-weight:600;padding:11px 15px;border:none;border-bottom:2px solid transparent;background:none;cursor:pointer;white-space:nowrap;color:#bbb;transition:all .15s;position:relative;}
+.tab.active{border-bottom-color:var(--text);color:var(--text);}
+.tab .bdot{position:absolute;top:7px;right:5px;width:6px;height:6px;background:var(--alert);border-radius:50%;}
+
+main{max-width:920px;margin:0 auto;padding:18px 14px 60px;}
+
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:11px;}
+.card{background:var(--card);border:1.5px solid var(--border);border-radius:15px;padding:13px;cursor:pointer;transition:box-shadow .15s,transform .1s;}
+.card:hover{box-shadow:0 6px 20px rgba(0,0,0,.09);transform:translateY(-1px);}
+.card.is-alert{border-color:#f0b0b0;background:#fff8f8;}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px;}
+.card-name{font-size:11px;font-weight:600;line-height:1.35;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.card-price{font-size:20px;font-weight:800;font-family:'DM Mono',monospace;margin:3px 0 5px;}
+.card-provs{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px;}
+.pbadge{font-size:9px;font-weight:700;padding:2px 6px;border-radius:10px;color:#fff;white-space:nowrap;}
+.delta{font-size:10px;font-family:'DM Mono',monospace;padding:2px 6px;border-radius:6px;white-space:nowrap;flex-shrink:0;}
+.d-up{background:#fde8e8;color:var(--alert);}
+.d-dn{background:#e8fded;color:#2a7a40;}
+.d-fl{background:#f0ede8;color:var(--muted);}
+.card-meta{font-size:9px;color:var(--muted);margin-top:4px;}
+canvas.spark{width:100%!important;height:55px!important;margin-top:5px;}
+
+.filters{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:16px;align-items:center;}
+.search{font-family:'Syne',sans-serif;font-size:13px;border:1.5px solid var(--border);border-radius:10px;padding:7px 11px;background:#fff;outline:none;flex:1;min-width:140px;}
+.search:focus{border-color:var(--text);}
+.pfbtn{font-family:'Syne',sans-serif;font-size:10px;font-weight:700;padding:5px 10px;border-radius:16px;border:2px solid transparent;cursor:pointer;color:#fff;transition:opacity .15s;}
+.pfbtn.off{opacity:.28;}
+.pfbtn.all{background:var(--text);}
+
+/* Review modal */
+.review-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:600;display:flex;align-items:center;justify-content:center;padding:16px;}
+.review-box{background:#fff;border-radius:20px;width:100%;max-width:800px;max-height:93vh;overflow:hidden;display:flex;flex-direction:column;}
+.review-header{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+.review-header h2{font-size:14px;font-weight:800;}
+.review-body{display:flex;flex:1;overflow:hidden;min-height:0;}
+.review-photo{width:44%;flex-shrink:0;overflow:hidden;background:#f0ede8;display:flex;align-items:center;justify-content:center;}
+.review-photo img{width:100%;height:100%;object-fit:contain;}
+.review-photo-empty{color:var(--muted);font-size:12px;}
+.review-right{flex:1;overflow-y:auto;padding:16px;}
+.review-meta{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.review-meta input{font-family:'Syne',sans-serif;font-size:12px;border:1.5px solid var(--border);border-radius:9px;padding:6px 10px;outline:none;background:#fff;flex:1;min-width:90px;}
+.review-meta input:focus{border-color:var(--text);}
+.review-products-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px;}
+.review-product-row{display:flex;align-items:center;gap:7px;margin-bottom:7px;}
+.review-product-name{font-size:11px;font-weight:600;flex:1;min-width:0;line-height:1.3;word-break:break-word;}
+.review-price-input{font-family:'DM Mono',monospace;font-size:13px;border:1.5px solid var(--border);border-radius:8px;padding:5px 8px;outline:none;background:#fff;width:84px;text-align:right;}
+.review-price-input:focus{border-color:var(--text);}
+.review-price-input.bad{border-color:var(--alert);background:#fff8f8;}
+.review-unit{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;min-width:22px;}
+.review-footer{padding:12px 20px;border-top:1px solid var(--border);display:flex;gap:10px;justify-content:flex-end;flex-shrink:0;}
+.btn-confirm{background:var(--text);border:none;color:#fff;font-family:'Syne',sans-serif;font-size:12px;font-weight:700;padding:10px 20px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:7px;}
+.btn-confirm:hover{background:#333;}
+.btn-confirm:disabled{opacity:.5;cursor:not-allowed;}
+.btn-cancel-rev{background:none;border:1.5px solid var(--border);color:var(--muted);font-family:'Syne',sans-serif;font-size:12px;font-weight:700;padding:10px 16px;border-radius:10px;cursor:pointer;}
+.btn-cancel-rev:hover{border-color:var(--text);color:var(--text);}
+.add-product-row{display:flex;align-items:center;gap:6px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);flex-wrap:wrap;}
+.add-product-row input{font-family:'Syne',sans-serif;font-size:11px;border:1.5px solid var(--border);border-radius:8px;padding:5px 9px;outline:none;background:#fff;}
+.add-product-row input:focus{border-color:var(--text);}
+.btn-add-prod{background:none;border:1.5px solid var(--border);color:var(--muted);font-size:18px;width:30px;height:30px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.btn-add-prod:hover{border-color:var(--text);color:var(--text);}
+.btn-del-prod{background:none;border:none;color:#ccc;font-size:15px;cursor:pointer;padding:2px 4px;flex-shrink:0;}
+.btn-del-prod:hover{color:var(--alert);}
+
+/* Main modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:500;display:flex;align-items:flex-end;justify-content:center;}
+.modal{background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:640px;max-height:88vh;overflow-y:auto;padding:20px 18px 36px;}
+.modal-handle{width:36px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 16px;}
+.modal h2{font-size:16px;font-weight:800;margin-bottom:4px;}
+.modal-close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:#aaa;margin-top:-4px;}
+.detail-chart{position:relative;height:180px;margin:16px 0;}
+.detail-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px;}
+.detail-table th{background:#f8f5f0;font-weight:700;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);}
+.detail-table td{padding:8px 10px;border-bottom:1px solid #f5f2ee;font-family:'DM Mono',monospace;}
+.detail-table td:first-child{font-family:'Syne',sans-serif;color:var(--muted);}
+.detail-table tr:last-child td{border-bottom:none;}
+.prov-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+
+.alert-item{background:#fff;border:1.5px solid #f0b0b0;border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;cursor:pointer;}
+.alert-pct{font-family:'DM Mono',monospace;font-size:20px;font-weight:800;color:var(--alert);flex-shrink:0;}
+
+.tw{overflow-x:auto;border-radius:12px;border:1.5px solid var(--border);background:#fff;}
+table{width:100%;border-collapse:collapse;font-size:11px;}
+th{background:#f8f5f0;font-weight:700;padding:9px 11px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--border);}
+th:first-child{text-align:left;position:sticky;left:0;background:#f8f5f0;min-width:160px;}
+td{padding:7px 11px;text-align:right;border-bottom:1px solid #f5f2ee;font-family:'DM Mono',monospace;}
+td:first-child{text-align:left;font-family:'Syne',sans-serif;font-weight:600;position:sticky;left:0;background:#fff;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+tr:hover td{background:#faf8f5;}
+tr:hover td:first-child{background:#faf8f5;}
+.tu{color:var(--alert);font-weight:700;}.tdn{color:#2a7a40;}.tfl{color:#ccc;}
+.tsub{font-size:9px;display:block;}
+
+.dropzone{border:2px dashed var(--border);border-radius:18px;padding:44px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#fff;}
+.dropzone:hover,.dropzone.drag{border-color:var(--text);background:#f0ede8;}
+.dropzone h2{font-size:17px;font-weight:700;margin:10px 0 5px;}
+.dropzone p{font-size:12px;color:var(--muted);}
+.wrow{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.wrow label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);}
+.winput{font-family:'DM Mono',monospace;font-size:13px;border:1.5px solid var(--border);border-radius:10px;padding:6px 11px;outline:none;background:#fff;}
+.winput:focus{border-color:var(--text);}
+.spinner{display:inline-block;width:26px;height:26px;border:3px solid #e0e0e0;border-top-color:var(--text);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.hlist{background:#fff;border:1.5px solid var(--border);border-radius:13px;overflow:hidden;margin-top:14px;}
+.hitem{border-bottom:1px solid #f5f2ee;}
+.hitem:last-child{border-bottom:none;}
+.hitem-header{display:flex;align-items:center;justify-content:space-between;padding:11px 15px;}
+.hitem h4{font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px;}
+.hitem p{font-size:10px;color:var(--muted);margin-top:1px;}
+.hitem-actions{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+.bdel{background:none;border:none;cursor:pointer;color:#ccc;font-size:17px;padding:3px;transition:color .15s;}
+.bdel:hover{color:var(--alert);}
+.bedit{background:none;border:1.5px solid var(--border);color:var(--muted);font-family:'Syne',sans-serif;font-size:10px;font-weight:700;padding:4px 9px;border-radius:8px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.bedit:hover{border-color:var(--text);color:var(--text);}
+.bedit.active{background:var(--text);color:#fff;border-color:var(--text);}
+.bfoto{background:none;border:1.5px solid #b0c8e8;color:#1a4f8a;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;padding:4px 9px;border-radius:8px;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.bfoto:hover{background:#eef4fb;}
+
+.edit-panel{background:#faf8f5;border-top:1px solid var(--border);padding:12px 15px;}
+.edit-panel-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:10px;}
+.edit-product-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+.edit-product-name{font-size:11px;font-weight:600;flex:1;min-width:120px;line-height:1.3;}
+.edit-price-input{font-family:'DM Mono',monospace;font-size:13px;border:1.5px solid var(--border);border-radius:8px;padding:5px 9px;outline:none;background:#fff;width:90px;text-align:right;}
+.edit-price-input:focus{border-color:var(--text);}
+.edit-price-input.changed{border-color:#2a7a40;background:#f0fff4;}
+.edit-unit{font-size:10px;color:var(--muted);font-family:'DM Mono',monospace;min-width:22px;}
+.btn-save-edit{background:var(--text);border:none;color:#fff;font-family:'Syne',sans-serif;font-size:11px;font-weight:700;padding:8px 16px;border-radius:9px;cursor:pointer;margin-top:6px;display:flex;align-items:center;gap:6px;}
+.btn-save-edit:hover{background:#333;}
+.btn-save-edit:disabled{opacity:.5;cursor:not-allowed;}
+.edit-saved-msg{font-size:11px;color:#2a7a40;font-weight:700;margin-top:6px;display:none;}
+
+.pdot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.errbox{background:#fde8e8;border:1.5px solid #f0b0b0;border-radius:11px;padding:11px 15px;font-size:12px;color:var(--alert);margin-top:11px;}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);}
+.empty .ico{font-size:44px;margin-bottom:14px;}
+.empty h3{font-size:15px;font-weight:700;color:var(--text);margin-bottom:5px;}
+
+.chart-card{background:#fff;border:1.5px solid var(--border);border-radius:15px;padding:18px;margin-bottom:18px;}
+.chart-card h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:14px;}
+.ch-wrap{position:relative;height:240px;}
+
+.sync-bar{background:#e8f4e8;border:1px solid #b0d8b0;border-radius:8px;padding:8px 12px;font-size:11px;color:#2a7a40;margin-bottom:14px;display:flex;align-items:center;gap:6px;}
+.sync-bar.err{background:#fde8e8;border-color:#f0b0b0;color:var(--alert);}
+
+.edit-btn-inline{background:none;border:1.5px solid var(--border);border-radius:6px;font-size:11px;padding:3px 7px;cursor:pointer;color:var(--muted);transition:all .15s;}
+.edit-btn-inline:hover{border-color:var(--text);color:var(--text);}
+.price-edit-inline{font-family:'DM Mono',monospace;font-size:12px;border:1.5px solid var(--text);border-radius:6px;padding:3px 7px;width:80px;text-align:right;outline:none;}
+.btn-confirm-inline{background:var(--text);border:none;color:#fff;font-family:'Syne',sans-serif;font-size:10px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;margin-left:4px;}
+.btn-cancel-inline{background:none;border:1.5px solid var(--border);color:var(--muted);font-family:'Syne',sans-serif;font-size:10px;font-weight:700;padding:4px 8px;border-radius:6px;cursor:pointer;margin-left:2px;}
+
+.foto-overlay{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:700;display:flex;align-items:center;justify-content:center;padding:20px;}
+.foto-overlay img{max-width:100%;max-height:90vh;border-radius:12px;}
+.foto-close{position:fixed;top:16px;right:16px;background:#fff;border:none;border-radius:50%;width:36px;height:36px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:701;}
+
+@media(max-width:600px){
+  .review-body{flex-direction:column;}
+  .review-photo{width:100%;height:180px;flex-shrink:0;}
+  .cards-grid{grid-template-columns:1fr 1fr;}
+  .card-price{font-size:17px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🏖 Preus · El Riuet Beach Bar</h1>
+    <p id="hstats">connectant…</p>
+  </div>
+  <button class="btn-sm" onclick="exportCSV()">⬇ CSV</button>
+</header>
+
+<nav>
+  <button class="tab" id="tab-upload"    onclick="showTab('upload')">📤 Afegir</button>
+  <button class="tab" id="tab-productos" onclick="showTab('productos')">📦 Productes</button>
+  <button class="tab" id="tab-alertas"   onclick="showTab('alertas')">🔔 Alertes</button>
+  <button class="tab" id="tab-evolucion" onclick="showTab('evolucion')">📈 Evolució</button>
+</nav>
+
+<main>
+  <div id="pane-upload"></div>
+  <div id="pane-productos" style="display:none"></div>
+  <div id="pane-alertas"   style="display:none"></div>
+  <div id="pane-evolucion" style="display:none"></div>
+</main>
+
+<!-- Review modal -->
+<div id="review-overlay" class="review-overlay" style="display:none">
+  <div class="review-box">
+    <div class="review-header">
+      <h2>✅ Verifica els preus abans de guardar</h2>
+      <button class="btn-cancel-rev" onclick="cancelReview()">✕</button>
+    </div>
+    <div class="review-body">
+      <div class="review-photo" id="review-photo-panel">
+        <div class="review-photo-empty">Sense foto</div>
+      </div>
+      <div class="review-right">
+        <div class="review-meta">
+          <input id="rev-proveedor" placeholder="Proveïdor" />
+          <input id="rev-fecha" placeholder="DD/MM/AAAA" />
+        </div>
+        <div class="review-products-title">Productes detectats — corregeix si cal</div>
+        <div id="rev-products-list"></div>
+        <div class="add-product-row">
+          <input id="new-prod-name" placeholder="Afegir producte…" style="flex:1;min-width:100px;" />
+          <input id="new-prod-price" placeholder="Preu" type="number" step="0.001" style="width:76px;font-family:'DM Mono',monospace;font-size:12px;" />
+          <input id="new-prod-unit" placeholder="ud" style="width:40px;" />
+          <button class="btn-add-prod" onclick="addReviewProduct()">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="review-footer">
+      <button class="btn-cancel-rev" onclick="cancelReview()">Descartar</button>
+      <button class="btn-confirm" id="btn-confirm-save" onclick="confirmSave()">
+        <span>💾</span> Guardar albarà
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail modal -->
+<div id="modal-overlay" class="modal-overlay" style="display:none">
+  <div class="modal" id="modal-box">
+    <div class="modal-handle"></div>
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div id="modal-content"></div>
+  </div>
+</div>
+
+<!-- Foto viewer -->
+<div id="foto-overlay" class="foto-overlay" style="display:none" onclick="closeFoto()">
+  <button class="foto-close" onclick="closeFoto()">✕</button>
+  <img id="foto-img" src="" alt="Albarà"/>
+</div>
+
+<script>
+const SUPABASE_URL="https://gpxytzekuiubpuqkdamu.supabase.co";
+const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdweHl0emVrdWl1YnB1cWtkYW11Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzQyMTIsImV4cCI6MjA5MzQxMDIxMn0.FAaMGpbKcX7VYldlRxOG3QPtHwY8mUV4LERnqgcPswQ";
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const BUCKET="albarans";
+
+const PC={"Fruites González":"#2d7a3a","Transgourmet":"#1a4f8a","Gros Mercat":"#1a5a4a","Carnisseria Sart":"#8b2020","Del Moral":"#5a3a8a","Dispuig":"#1a6b7a","Garcia Bros":"#8a4a10","Selecció Regisa":"#7a1a5a","Pauet":"#3a6a20","Distribucions L'Armallada":"#4a4a8a","Europastry":"#8a6a10"};
+const pc=p=>PC[p]||"#5a5a5a";
+const ALERT_THR=5;
+
+function parseDate(s){if(!s)return null;const[d,m,y]=s.split("/");return new Date(+y,+m-1,+d);}
+function weekMonday(date){const d=new Date(date);const day=d.getDay()||7;d.setDate(d.getDate()-day+1);return d;}
+function weekKey(dateStr){const d=parseDate(dateStr);if(!d)return"0000-00-00";const m=weekMonday(d);return m.toISOString().slice(0,10);}
+const MCA=["Gen","Feb","Mar","Abr","Mai","Jun","Jul","Ago","Set","Oct","Nov","Des"];
+function weekLabel(wk){const mon=new Date(wk+"T00:00:00");const sun=new Date(mon);sun.setDate(mon.getDate()+6);const mM=MCA[mon.getMonth()],mS=MCA[sun.getMonth()];return mon.getMonth()===sun.getMonth()?`${mon.getDate()}-${sun.getDate()} ${mM}`:`${mon.getDate()} ${mM} – ${sun.getDate()} ${mS}`;}
+function todayStr(){const d=new Date();return`${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;}
+function pct(a,b){if(!b)return 0;return((a-b)/b)*100;}
+
+let history=[],dbReady=false,openEditId=null;
+let pendingFile=null,pendingMime=null,pendingProducts=[];
+let uploadDate=todayStr(),uploadLoading=false,uploadError="";
+
+const SEED=[
+  {proveedor:"Dispuig",fecha:"27/03/2026",productos:[{nombre:"Gel Mojito-Cocktail (kg)",precio:0.760,unitat:"kg"},{nombre:"Glaçons 5x2kg (kg)",precio:0.680,unitat:"kg"},{nombre:"Vilavella Suc Tomata Eco 12x200ml",precio:0.810,unitat:"ud"},{nombre:"Salmó Fumat Pretallat 5x1.5kg",precio:28.900,unitat:"kg"},{nombre:"Crema Formatge Untar Debic 2x1.5kg",precio:13.530,unitat:"ud"},{nombre:"Nata Montar Cream 35% Debic (L)",precio:5.980,unitat:"L"},{nombre:"Vieira Peru 1/2 Clova 10x900gr",precio:13.750,unitat:"ud"},{nombre:"Musclo Net Atmosfera 35/45pz (kg)",precio:3.190,unitat:"kg"}]},
+  {proveedor:"Dispuig",fecha:"28/03/2026",productos:[{nombre:"Musclo Net Atmosfera 35/45pz (kg)",precio:3.190,unitat:"kg"},{nombre:"Vieira Peru 1/2 Clova 10x900gr",precio:13.750,unitat:"ud"},{nombre:"Crema Formatge Untar Debic 2x1.5kg",precio:13.530,unitat:"ud"},{nombre:"Nata Montar Cream 35% Debic (L)",precio:5.980,unitat:"L"}]},
+  {proveedor:"Dispuig",fecha:"02/04/2026",productos:[{nombre:"Musclo Net Atmosfera 35/45pz (kg)",precio:3.190,unitat:"kg"},{nombre:"Arla Formatge Havarti IGP Llescat",precio:15.520,unitat:"ud"},{nombre:"Melmelada Gerds Hero 1kg",precio:7.530,unitat:"ud"},{nombre:"Mantega Tradicional 10x1kg Debic",precio:11.320,unitat:"kg"},{nombre:"Pop Cuit Potes 150/200 4x1.5kg",precio:44.950,unitat:"kg"}]},
+  {proveedor:"Dispuig",fecha:"04/04/2026",productos:[{nombre:"Glaçons 5x2kg (kg)",precio:0.680,unitat:"kg"},{nombre:"Chovi Salsa Maionesa 4x3.6L",precio:13.550,unitat:"ud"},{nombre:"Trufes Xocolata 9x50u La Menorquina",precio:25.480,unitat:"ud"},{nombre:"Tub Xocolata Negra 12u 100ml Fageda",precio:1.550,unitat:"ud"},{nombre:"Vieira Peru 1/2 Clova 20/30 10x900gr",precio:14.950,unitat:"ud"},{nombre:"Cantadora Mozzarella Ratllada 100% (kg)",precio:6.031,unitat:"kg"},{nombre:"Bacallà Filet 500/1000 30% (kg)",precio:8.550,unitat:"kg"},{nombre:"Tomaquet Sec en Oli 6x950gr",precio:8.700,unitat:"ud"}]},
+  {proveedor:"Dispuig",fecha:"07/04/2026",productos:[{nombre:"Cantadora Mozzarella Ratllada 100% (kg)",precio:6.032,unitat:"kg"}]},
+  {proveedor:"Dispuig",fecha:"08/04/2026",productos:[{nombre:"Gel Mojito-Cocktail (kg)",precio:0.760,unitat:"kg"},{nombre:"Vilavella Suc Pinya Eco 12x200ml",precio:1.010,unitat:"ud"},{nombre:"Vilavella Suc Poma Eco 12x200ml",precio:0.780,unitat:"ud"},{nombre:"Nata Montar Cream 35% Debic (L)",precio:5.980,unitat:"L"},{nombre:"Tub Xocolata Negra 12u 100ml Fageda",precio:1.550,unitat:"ud"},{nombre:"Copa Liegeoise Sorbet Llimona 20u",precio:18.400,unitat:"ud"},{nombre:"Vilavella Suc Pressec i Raïm 6x1L",precio:2.750,unitat:"ud"}]},
+  {proveedor:"Dispuig",fecha:"11/04/2026",productos:[{nombre:"Coquina Medit. 12x250gr Drago Foods",precio:5.900,unitat:"ud"},{nombre:"Tub Xocolata Negra 12u 100ml Fageda",precio:1.550,unitat:"ud"},{nombre:"Musclo Net Atmosfera 35/45pz (kg)",precio:3.190,unitat:"kg"}]},
+  {proveedor:"Dispuig",fecha:"24/04/2026",productos:[{nombre:"Albergínia Escalivada al Forn 2x1.5kg",precio:13.250,unitat:"ud"},{nombre:"Gel Mojito-Cocktail (kg)",precio:0.760,unitat:"kg"},{nombre:"Glaçons 5x2kg (kg)",precio:0.680,unitat:"kg"},{nombre:"Granel Vainilla Bourbon 2.5Lt La Menorquina",precio:23.460,unitat:"ud"},{nombre:"Tub Vainilla i Macadàmia 12u 100ml",precio:1.500,unitat:"ud"},{nombre:"Copa Liegeoise Sorbet Llimona 20u",precio:18.400,unitat:"ud"}]},
+  {proveedor:"Dispuig",fecha:"25/04/2026",productos:[{nombre:"Escala Filets Anxova en Oli 120un 6x1",precio:33.700,unitat:"ud"},{nombre:"Menu Filets Seito Cantàbric 120/130un",precio:18.300,unitat:"ud"},{nombre:"Coquina Medit. 12x250gr Drago Foods",precio:5.900,unitat:"ud"},{nombre:"Glaçons 5x2kg (kg)",precio:0.680,unitat:"kg"},{nombre:"Musclo Net Atmosfera 35/45pz (kg)",precio:3.190,unitat:"kg"}]},
+  {proveedor:"Fruites González",fecha:"16/04/2026",productos:[{nombre:"Ceba Morada Quilos (kg)",precio:1.960,unitat:"kg"},{nombre:"Celeri Unitat",precio:2.350,unitat:"ud"},{nombre:"Ciboulette Manat 100g",precio:2.200,unitat:"ud"},{nombre:"Enciams&Brots 6/7VA Del País 1kg",precio:7.990,unitat:"ud"},{nombre:"Sal Fina de Mesa 1kg",precio:0.650,unitat:"kg"},{nombre:"Sal Maldon 250g",precio:4.960,unitat:"ud"}]},
+  {proveedor:"Fruites González",fecha:"17/04/2026",productos:[{nombre:"Alfàbrega Manat 100g",precio:2.200,unitat:"ud"},{nombre:"Safrà Tub Burriac 98grms",precio:2.040,unitat:"ud"},{nombre:"Ou Sencer Pasteuritzat 1L",precio:2.540,unitat:"ud"},{nombre:"Llima Extra Quilos (kg)",precio:3.280,unitat:"kg"},{nombre:"Llimona Extra Bossa 1kg",precio:0.660,unitat:"kg"},{nombre:"Patata Sac Agata 15kg",precio:4.820,unitat:"sac"},{nombre:"Cogombre Extra del País A",precio:1.060,unitat:"ud"},{nombre:"Julivert del País Manat Fresc",precio:4.350,unitat:"ud"},{nombre:"Tomaquet Bombeta Quilos (kg)",precio:2.490,unitat:"kg"}]},
+  {proveedor:"Fruites González",fecha:"23/04/2026",productos:[{nombre:"Alvocat Suprema a Quilos (kg)",precio:7.250,unitat:"kg"},{nombre:"Alls Porros Caixa",precio:1.020,unitat:"cj"},{nombre:"Nabius Safata 125g",precio:2.750,unitat:"ud"},{nombre:"Celeri Unitat",precio:2.350,unitat:"ud"},{nombre:"Ciboulette Manat 100g",precio:2.200,unitat:"ud"},{nombre:"Harisa 120g",precio:3.000,unitat:"ud"},{nombre:"Enciams&Brots 6/7VA Del País 1kg",precio:7.990,unitat:"ud"},{nombre:"Llima Extra Quilos (kg)",precio:2.620,unitat:"kg"},{nombre:"Llimona Extra Bossa 1kg",precio:3.280,unitat:"kg"},{nombre:"Patata Sac Agata 15kg",precio:7.500,unitat:"sac"},{nombre:"Cogombre Extra del País A",precio:1.840,unitat:"ud"},{nombre:"Pebrot Vermell Extra Quilos (kg)",precio:2.390,unitat:"kg"},{nombre:"Pebrot Verd Extra Quilos (kg)",precio:3.560,unitat:"kg"},{nombre:"Tomaquet Bombeta Quilos (kg)",precio:2.490,unitat:"kg"}]},
+  {proveedor:"Fruites González",fecha:"24/04/2026",productos:[{nombre:"Alvocat Suprema a Quilos (kg)",precio:7.250,unitat:"kg"},{nombre:"Nabius Safata 125g",precio:2.750,unitat:"ud"},{nombre:"Ceba Morada Quilos (kg)",precio:1.960,unitat:"kg"},{nombre:"Ou Sencer Pasteuritzat 1L",precio:5.540,unitat:"ud"},{nombre:"Enciams&Brots 6/7VA Del País 1kg",precio:7.990,unitat:"ud"},{nombre:"Llima Extra Quilos (kg)",precio:2.620,unitat:"kg"},{nombre:"Llimona Extra Bossa 1kg",precio:3.280,unitat:"kg"},{nombre:"Blat de Moro Cuit 450g",precio:1.600,unitat:"ud"},{nombre:"Cogombre Extra del País A",precio:1.840,unitat:"ud"},{nombre:"Purè Higa Boiron 1kg",precio:18.150,unitat:"kg"},{nombre:"Tomaquet Penjar Saf. 2.5kg",precio:13.630,unitat:"ud"}]},
+  {proveedor:"Fruites González",fecha:"25/04/2026",productos:[{nombre:"Alls Porros Caixa",precio:1.020,unitat:"cj"},{nombre:"Alfàbrega Manat 100g",precio:2.200,unitat:"ud"},{nombre:"Llima Extra Quilos (kg)",precio:3.280,unitat:"kg"},{nombre:"Llimona Extra Bossa 1kg",precio:1.060,unitat:"kg"},{nombre:"Julivert del País Manat Fresc",precio:2.490,unitat:"ud"},{nombre:"Tomaquet Bombeta Quilos (kg)",precio:4.580,unitat:"kg"},{nombre:"Raïm Negre Mini Box Quilos (kg)",precio:4.580,unitat:"kg"}]},
+  {proveedor:"Transgourmet",fecha:"15/04/2026",productos:[{nombre:"Ametlla Quality Repel. Crua 1kg",precio:15.590,unitat:"kg"},{nombre:"Arros Quality Ext. 5kg",precio:7.686,unitat:"ud"},{nombre:"Avellana Quality Torr. Repè 500g",precio:13.490,unitat:"ud"},{nombre:"Mostassa Maille Gra Antiga 210g",precio:3.250,unitat:"ud"},{nombre:"Oliva Quality Rodanxa Neg. 1.56kg",precio:7.300,unitat:"ud"},{nombre:"Pasta Faisan Spaghetti 5kg",precio:7.290,unitat:"ud"},{nombre:"Pasta Gourmet Espiral Tric. 5kg",precio:9.650,unitat:"ud"},{nombre:"Pasta Gourmet Macarró N6 5kg",precio:7.650,unitat:"ud"},{nombre:"Formatge Gazi Tipus Feta Dau 1kg",precio:12.590,unitat:"kg"}]},
+  {proveedor:"Gros Mercat",fecha:"15/04/2026",productos:[{nombre:"Llet Primer Preu Sen. 1L",precio:0.930,unitat:"ud"}]},
+  {proveedor:"Transgourmet",fecha:"17/04/2026",productos:[{nombre:"Llet Quality Gran Creme 1.5L",precio:1.440,unitat:"ud"}]},
+  {proveedor:"Transgourmet",fecha:"24/04/2026",productos:[{nombre:"Aroma Braun Vain.Nat. 150ml",precio:2.890,unitat:"ud"},{nombre:"Avellana Quality Torr. Repè 500g",precio:13.490,unitat:"ud"},{nombre:"Llet Primer Preu Sen. 1L",precio:0.930,unitat:"ud"},{nombre:"Llet Quality Gran Creme 1.5L",precio:1.440,unitat:"ud"},{nombre:"Oli Gourmet Girasol 5L 0.2°",precio:7.930,unitat:"ud"},{nombre:"Oli Gourmet Oliva Suau 5L 0.4°",precio:19.310,unitat:"ud"},{nombre:"Oli Quality Alt Oleic 80% 25L",precio:49.600,unitat:"ud"},{nombre:"Pebre Quality Neg.Molt 850g",precio:15.380,unitat:"ud"},{nombre:"Salsa Hellman's Mosta.Mel 1L",precio:9.690,unitat:"ud"},{nombre:"Salsa Kikkoman Soja Pet 1.9L",precio:13.690,unitat:"ud"},{nombre:"Rovell Dovo Ou 1kg",precio:12.250,unitat:"kg"}]},
+  {proveedor:"Transgourmet",fecha:"29/04/2026",productos:[{nombre:"Avellana Quality Torr. Repè 500g",precio:13.780,unitat:"ud"},{nombre:"Maionesa Hellmann's Cubell 5L",precio:20.090,unitat:"ud"},{nombre:"Oli Gourmet Girasol 5L 0.2°",precio:7.930,unitat:"ud"},{nombre:"Oli Gourmet Oliva Suau 5L 0.4°",precio:19.310,unitat:"ud"},{nombre:"Oli Quality Alt Oleic 80% 25L",precio:49.600,unitat:"ud"},{nombre:"Rovell Dovo Ou 1kg",precio:12.250,unitat:"kg"},{nombre:"Ou Liquid Dovo 1L",precio:5.760,unitat:"ud"}]},
+  {proveedor:"Transgourmet",fecha:"30/04/2026",productos:[{nombre:"Sucre Azucarera More 1kg",precio:1.700,unitat:"kg"},{nombre:"Sucre Azucarera 1kg",precio:1.030,unitat:"kg"}]},
+  {proveedor:"Carnisseria Sart",fecha:"17/04/2026",productos:[{nombre:"Rus de Vedella (kg)",precio:12.450,unitat:"kg"},{nombre:"Sobrassada Sart (kg)",precio:12.700,unitat:"kg"},{nombre:"Xistorra (kg)",precio:9.750,unitat:"kg"},{nombre:"Ous de Granja 1/2 dotz",precio:1.800,unitat:"ud"},{nombre:"1/4 de Pollastre Halal (kg)",precio:4.650,unitat:"kg"}]},
+  {proveedor:"Carnisseria Sart",fecha:"24/04/2026",productos:[{nombre:"Conde Duque Curat (kg)",precio:17.100,unitat:"kg"},{nombre:"Fuet (kg)",precio:15.950,unitat:"kg"},{nombre:"Rus de Vedella (kg)",precio:12.450,unitat:"kg"},{nombre:"1/4 de Pollastre Halal (kg)",precio:4.650,unitat:"kg"},{nombre:"Bacon Fumat Llescat (kg)",precio:10.950,unitat:"kg"},{nombre:"Galtes de Porc (kg)",precio:8.250,unitat:"kg"},{nombre:"Xoriç Ibèric Curat (kg)",precio:36.800,unitat:"kg"}]},
+  {proveedor:"Carnisseria Sart",fecha:"25/04/2026",productos:[{nombre:"Xistorra (kg)",precio:9.750,unitat:"kg"},{nombre:"1/4 de Pollastre Halal (kg)",precio:4.650,unitat:"kg"},{nombre:"Bacon Fumat Llescat (kg)",precio:10.950,unitat:"kg"},{nombre:"Mandonguilles (kg)",precio:13.900,unitat:"kg"},{nombre:"Galtes de Porc (kg)",precio:8.250,unitat:"kg"}]},
+  {proveedor:"Carnisseria Sart",fecha:"30/04/2026",productos:[{nombre:"Xistorra (kg)",precio:9.750,unitat:"kg"},{nombre:"1/4 de Pollastre Halal (kg)",precio:4.650,unitat:"kg"},{nombre:"Bacon Fumat Llescat (kg)",precio:10.950,unitat:"kg"},{nombre:"Mandonguilles (kg)",precio:13.900,unitat:"kg"},{nombre:"Galtes de Porc (kg)",precio:8.250,unitat:"kg"}]},
+  {proveedor:"Del Moral",fecha:"17/04/2026",productos:[{nombre:"Allistat Mauritania A2 (kg)",precio:16.900,unitat:"kg"},{nombre:"Pollastre Kentucky 3x1k (cj)",precio:32.650,unitat:"cj"},{nombre:"Puntilla Enfarinada 2kg",precio:20.150,unitat:"ud"},{nombre:"Burratina 8x125g",precio:20.600,unitat:"ud"}]},
+  {proveedor:"Del Moral",fecha:"23/04/2026",productos:[{nombre:"Pop Cuit 8 Pota 150/200 4x1.5kg",precio:55.850,unitat:"ud"},{nombre:"Pollastre Kentucky 3x1k (cj)",precio:32.650,unitat:"cj"},{nombre:"Puntilla Enfarinada 2kg",precio:20.150,unitat:"ud"},{nombre:"Salmó Aumar Llescat 1.2-1.7k (kg)",precio:25.350,unitat:"kg"},{nombre:"Burratina 8x125g",precio:20.600,unitat:"ud"},{nombre:"Hellmann's Professional 5L",precio:15.450,unitat:"ud"}]},
+  {proveedor:"Del Moral",fecha:"30/04/2026",productos:[{nombre:"Puntilla Enfarinada 2kg",precio:20.150,unitat:"ud"},{nombre:"Perles Salmo 5mm 8x500g",precio:9.950,unitat:"ud"},{nombre:"Salmó Aumar Llescat 1.2-1.7k (kg)",precio:25.990,unitat:"kg"},{nombre:"Burratina 8x125g",precio:20.600,unitat:"ud"},{nombre:"Tomates Secs 6x950g",precio:10.600,unitat:"ud"}]},
+  {proveedor:"Garcia Bros",fecha:"14/04/2026",productos:[{nombre:"Retalls d'Ibèric (kg)",precio:17.000,unitat:"kg"}]},
+  {proveedor:"Selecció Regisa",fecha:"29/04/2026",productos:[{nombre:"Volutto de Gambes 20u x 120g",precio:3.250,unitat:"ud"}]},
+  {proveedor:"Pauet",fecha:"16/04/2026",productos:[{nombre:"Recuit Drap Safata 6",precio:6.600,unitat:"ud"}]},
+  {proveedor:"Distribucions L'Armallada",fecha:"16/04/2026",productos:[{nombre:"Tarrina 50 Filets \"00\"",precio:27.000,unitat:"ud"},{nombre:"Seito Noemar 70/80 Filets",precio:26.900,unitat:"ud"}]},
+];
+
+async function loadData(){
+  try{
+    const{data,error}=await sb.from("albarans").select("*").order("fecha",{ascending:true});
+    if(error)throw error;
+    if(data.length===0){await seedDatabase();}
+    else{history=data.map(r=>({id:r.id,proveedor:r.proveedor,fecha:r.fecha,productos:r.productos,foto_url:r.foto_url||null}));}
+    dbReady=true;
+  }catch(e){console.error(e);history=SEED.map(e=>({...e,foto_url:null}));dbReady=false;}
+  renderHeader();showTab("upload");
+}
+
+async function seedDatabase(){
+  const rows=SEED.map(e=>({proveedor:e.proveedor,fecha:e.fecha,productos:e.productos,foto_url:null}));
+  const{data,error}=await sb.from("albarans").insert(rows).select();
+  if(error)throw error;
+  history=data.map(r=>({id:r.id,proveedor:r.proveedor,fecha:r.fecha,productos:r.productos,foto_url:r.foto_url||null}));
+}
+
+function allDates(){return[...new Set(history.map(e=>e.fecha))].filter(Boolean).sort((a,b)=>parseDate(a)-parseDate(b));}
+function allWeekKeys(){return[...new Set(allDates().map(weekKey))].sort();}
+function allProvs(){return[...new Set(history.map(e=>e.proveedor))].sort();}
+function allProducts(){return[...new Set(history.flatMap(e=>e.productos.map(p=>p.nombre)))].sort();}
+function productProviders(name){return[...new Set(history.filter(e=>e.productos.some(p=>p.nombre===name)).map(e=>e.proveedor))];}
+
+function weekAvgForProduct(name,wk){
+  const dates=allDates().filter(d=>weekKey(d)===wk);
+  const es=history.filter(e=>dates.includes(e.fecha)).flatMap(e=>e.productos.filter(p=>p.nombre===name&&p.precio!=null));
+  if(!es.length)return null;
+  return+(es.reduce((a,b)=>a+b.precio,0)/es.length).toFixed(2);
+}
+
+function dailyPrices(name){
+  return allDates().map(fecha=>{
+    const es=history.filter(e=>e.fecha===fecha).flatMap(e=>e.productos.filter(p=>p.nombre===name&&p.precio!=null));
+    if(!es.length)return null;
+    const avg=+(es.reduce((a,b)=>a+b.precio,0)/es.length).toFixed(2);
+    const provs=[...new Set(history.filter(e=>e.fecha===fecha&&e.productos.some(p=>p.nombre===name)).map(e=>e.proveedor))];
+    const entries=history.filter(e=>e.fecha===fecha&&e.productos.some(p=>p.nombre===name));
+    return{fecha,precio:avg,provs,entries};
+  }).filter(Boolean);
+}
+
+function getAlerts(){
+  const wks=allWeekKeys();
+  return allProducts().map(name=>{
+    const prices=wks.map(wk=>weekAvgForProduct(name,wk));
+    const idx=prices.map((p,i)=>p!=null?i:-1).filter(i=>i>=0);
+    if(idx.length<2)return null;
+    const li=idx.at(-1),pi=idx.at(-2);
+    const d=pct(prices[li],prices[pi]);
+    if(d<=ALERT_THR)return null;
+    return{name,d,last:prices[li],prev:prices[pi],wk:wks[li],provs:productProviders(name)};
+  }).filter(Boolean).sort((a,b)=>b.d-a.d);
+}
+
+function exportCSV(){
+  const rows=[["Data","Proveïdor","Producte","Preu","Unitat","Setmana"]];
+  history.forEach(e=>e.productos.filter(p=>p.precio!=null).forEach(p=>rows.push([e.fecha||"",e.proveedor,p.nombre,p.precio,p.unitat||"",weekLabel(weekKey(e.fecha))])));
+  const csv=rows.map(r=>r.map(c=>`"${c}"`).join(";")).join("\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8"}));
+  a.download="seguiment_preus_elriuet.csv";a.click();
+}
+
+function renderHeader(){
+  const wks=allWeekKeys(),alerts=getAlerts();
+  document.getElementById("hstats").textContent=`${wks.length} setmanes · ${allProducts().length} productes · ${history.length} albarans${dbReady?" · ☁️ sincronitzat":""}`;
+  const tab=document.getElementById("tab-alertas");
+  tab.innerHTML=alerts.length?`🔔 Alertes (${alerts.length})<span class="bdot"></span>`:"🔔 Alertes";
+}
+
+function showTab(id){
+  ["upload","productos","alertas","evolucion"].forEach(t=>{
+    document.getElementById(`pane-${t}`).style.display=t===id?"block":"none";
+    document.getElementById(`tab-${t}`).classList.toggle("active",t===id);
+  });
+  if(id==="upload")renderUpload();
+  if(id==="productos")renderProductos();
+  if(id==="alertas")renderAlertes();
+  if(id==="evolucion")renderEvolucion();
+}
+
+// ── Upload ────────────────────────────────────────────
+function renderUpload(){
+  const syncMsg=dbReady
+    ?`<div class="sync-bar">☁️ Connectat a Supabase — les dades es sincronitzen entre tots els dispositius</div>`
+    :`<div class="sync-bar err">⚠ Sense connexió — els canvis no es guardaran al núvol</div>`;
+  document.getElementById("pane-upload").innerHTML=`
+    ${syncMsg}
+    <div class="wrow">
+      <label>Data de l'albarà:</label>
+      <input class="winput" value="${uploadDate}" placeholder="DD/MM/AAAA" onchange="uploadDate=this.value"/>
+    </div>
+    <div class="dropzone" id="drop-zone"
+      onclick="document.getElementById('fi').click()"
+      ondragover="event.preventDefault();this.classList.add('drag')"
+      ondragleave="this.classList.remove('drag')"
+      ondrop="handleDrop(event)">
+      <input type="file" id="fi" multiple accept="image/*" style="display:none" onchange="handleFiles(this.files)"/>
+      ${uploadLoading
+        ?`<div class="spinner"></div><p style="margin-top:12px;font-size:12px;color:var(--muted)">Analitzant amb IA…</p>`
+        :`<div style="font-size:40px">🧾</div>
+          <h2>Afegeix albarans</h2>
+          <p>Arrossega fotos aquí o toca per seleccionar</p>
+          <p style="margin-top:6px;font-size:11px;opacity:.4">La IA extraurà els preus · podràs verificar i corregir abans de guardar</p>`
+      }
+    </div>
+    ${uploadError?`<div class="errbox">⚠ ${uploadError}</div>`:""}
+    ${history.length?`
+    <div class="hlist" style="margin-top:16px">
+      <div style="padding:10px 15px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">
+        ${history.length} albarans — toca ✏️ per corregir preus
+      </div>
+      ${history.slice().reverse().map((e,ri)=>{
+        const i=history.length-1-ri;
+        const uid=e.id||`idx-${i}`;
+        const isOpen=openEditId===uid;
+        return`<div class="hitem">
+          <div class="hitem-header">
+            <div>
+              <h4><span class="pdot" style="background:${pc(e.proveedor)}"></span>${e.proveedor}</h4>
+              <p>${e.fecha||"—"} · ${weekLabel(weekKey(e.fecha))} · ${e.productos.filter(p=>p.precio!=null).length} productes</p>
+            </div>
+            <div class="hitem-actions">
+              ${e.foto_url?`<button class="bfoto" onclick="viewFoto('${e.foto_url}',event)">🖼 Foto</button>`:""}
+              <button class="bedit${isOpen?" active":""}" onclick="toggleEditPanel('${uid}',${i},event)">✏️ Editar</button>
+              <button class="bdel" onclick="delEntry('${e.id||""}',${i})">✕</button>
+            </div>
+          </div>
+          <div id="edit-panel-${uid}" style="display:${isOpen?"block":"none"}">
+            ${buildEditPanel(e,i)}
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`:""}
+  `;
+}
+
+// ── Review modal ──────────────────────────────────────
+function openReview(file,mime,aiData){
+  pendingFile=file; pendingMime=mime;
+  pendingProducts=(aiData.productos||[]).map((p,i)=>({...p,_id:i}));
+  document.getElementById("rev-proveedor").value=aiData.proveedor||"";
+  document.getElementById("rev-fecha").value=aiData.fecha||uploadDate;
+  const photoPanel=document.getElementById("review-photo-panel");
+  const url=URL.createObjectURL(file);
+  photoPanel.innerHTML=`<img src="${url}" alt="Albarà"/>`;
+  renderReviewProducts();
+  document.getElementById("review-overlay").style.display="flex";
+}
+
+function renderReviewProducts(){
+  document.getElementById("rev-products-list").innerHTML=pendingProducts.map((p,i)=>{
+    const bad=p.precio==null||isNaN(p.precio)||p.precio<=0;
+    return`<div class="review-product-row">
+      <span class="review-product-name">${p.nombre}</span>
+      <input class="review-price-input${bad?" bad":""}" type="number" step="0.001" min="0"
+        value="${p.precio!=null&&!isNaN(p.precio)?p.precio:""}"
+        placeholder="?"
+        oninput="updatePendingPrice(${i},this.value,this)"
+      />
+      <span class="review-unit">${p.unitat||""}</span>
+      <button class="btn-del-prod" onclick="deletePendingProduct(${i})">✕</button>
+    </div>`;
+  }).join("");
+}
+
+function updatePendingPrice(i,val,inp){
+  const num=parseFloat(val.replace(",","."));
+  pendingProducts[i].precio=isNaN(num)?null:+num.toFixed(3);
+  inp.classList.toggle("bad",!num||num<=0);
+}
+
+function deletePendingProduct(i){
+  pendingProducts.splice(i,1);
+  renderReviewProducts();
+}
+
+function addReviewProduct(){
+  const name=document.getElementById("new-prod-name").value.trim();
+  const price=parseFloat(document.getElementById("new-prod-price").value.replace(",","."));
+  const unit=document.getElementById("new-prod-unit").value.trim()||"ud";
+  if(!name)return;
+  pendingProducts.push({nombre:name,precio:isNaN(price)?null:+price.toFixed(3),unitat:unit});
+  document.getElementById("new-prod-name").value="";
+  document.getElementById("new-prod-price").value="";
+  document.getElementById("new-prod-unit").value="";
+  renderReviewProducts();
+}
+
+function cancelReview(){
+  document.getElementById("review-overlay").style.display="none";
+  pendingFile=null;pendingMime=null;pendingProducts=[];
+  uploadLoading=false;renderUpload();
+}
+
+async function confirmSave(){
+  const btn=document.getElementById("btn-confirm-save");
+  btn.disabled=true;
+  btn.innerHTML=`<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Guardant…`;
+  const proveedor=document.getElementById("rev-proveedor").value.trim()||"Desconegut";
+  const fecha=document.getElementById("rev-fecha").value.trim()||uploadDate;
+  const productos=pendingProducts.filter(p=>p.precio!=null&&!isNaN(p.precio)&&p.precio>0);
+  let foto_url=null;
+  if(pendingFile&&dbReady){
+    try{
+      const ext=pendingFile.name.split(".").pop()||"jpg";
+      const path=`${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const{error:upErr}=await sb.storage.from(BUCKET).upload(path,pendingFile,{contentType:pendingMime||"image/jpeg"});
+      if(upErr)throw upErr;
+      const{data:urlData}=sb.storage.from(BUCKET).getPublicUrl(path);
+      foto_url=urlData.publicUrl;
+    }catch(e){console.warn("Error pujant foto:",e.message);}
+  }
+  const entry={proveedor,fecha,productos,foto_url};
+  if(dbReady){
+    try{
+      const{data:row,error}=await sb.from("albarans").insert([entry]).select().single();
+      if(error)throw error;
+      history.push({...entry,id:row.id});
+    }catch(e){
+      btn.disabled=false;btn.innerHTML=`<span>💾</span> Guardar albarà`;
+      alert("Error guardant: "+e.message);return;
+    }
+  }else{history.push(entry);}
+  document.getElementById("review-overlay").style.display="none";
+  pendingFile=null;pendingMime=null;pendingProducts=[];
+  uploadLoading=false;
+  btn.disabled=false;btn.innerHTML=`<span>💾</span> Guardar albarà`;
+  renderHeader();renderUpload();
+}
+
+function viewFoto(url,evt){evt&&evt.stopPropagation();document.getElementById("foto-img").src=url;document.getElementById("foto-overlay").style.display="flex";}
+function closeFoto(){document.getElementById("foto-overlay").style.display="none";}
+
+function handleDrop(e){e.preventDefault();document.getElementById("drop-zone")?.classList.remove("drag");handleFiles(e.dataTransfer.files);}
+
+async function handleFiles(files){
+  if(!files.length)return;
+  const file=files[0];
+  // read file to base64 BEFORE touching the DOM
+  let b64,mime;
+  try{
+    mime=file.type||"image/jpeg";
+    b64=await toB64(file);
+  }catch(err){
+    uploadError=`Error llegint fitxer: ${err.message}`;
+    renderUpload();return;
+  }
+  uploadError="";uploadLoading=true;renderUpload();
+  try{
+    const aiData=await callAI(b64,mime);
+    uploadLoading=false;
+    openReview(file,mime,aiData);
+  }catch(err){
+    uploadError=`Error: ${file.name} — ${err.message}`;
+    uploadLoading=false;renderUpload();
+  }
+}
+
+function toB64(file){return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(",")[1]);fr.onerror=j;fr.readAsDataURL(file);});}
+
+async function callAI(b64,mt){
+  const res=await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,
+      system:`Extreu dades d'albarans. Respon NOMÉS amb JSON vàlid sense markdown.
+Format: {"proveedor":"nom","fecha":"DD/MM/YYYY","productos":[{"nombre":"nom","precio":0.00,"unitat":"kg/ud/L/cj"}]}
+Els preus han de ser PREUS UNITARIS en euros. Si un preu no és clar, posa null.`,
+      messages:[{role:"user",content:[
+        {type:"image",source:{type:"base64",media_type:mt,data:b64}},
+        {type:"text",text:`Extreu tots els productes amb preus unitaris. Data referència: ${uploadDate}`}
+      ]}]
+    })
+  });
+  const d=await res.json();
+  return JSON.parse(d.content.map(b=>b.text||"").join("").replace(/```json|```/g,"").trim());
+}
+
+// ── Edit panel ────────────────────────────────────────
+function buildEditPanel(entry,idx){
+  return`<div class="edit-panel">
+    <div class="edit-panel-title">✏️ Corregeix preus — ${entry.proveedor} · ${entry.fecha}</div>
+    ${entry.productos.map((p,pi)=>`
+      <div class="edit-product-row">
+        <span class="edit-product-name">${p.nombre}</span>
+        <input class="edit-price-input" type="number" step="0.001" min="0"
+          id="eprice-${idx}-${pi}" value="${p.precio!=null?p.precio:""}" placeholder="—"
+          oninput="this.classList.add('changed')"/>
+        <span class="edit-unit">${p.unitat||""}</span>
+      </div>`).join("")}
+    <button class="btn-save-edit" id="btn-save-${idx}" onclick="saveEditPanel('${entry.id||""}',${idx})">
+      <span>💾</span> Desa els canvis
+    </button>
+    <div class="edit-saved-msg" id="saved-msg-${idx}">✅ Desat correctament</div>
+  </div>`;
+}
+
+function toggleEditPanel(uid,idx,evt){
+  evt.stopPropagation();
+  const panel=document.getElementById(`edit-panel-${uid}`);
+  const btn=evt.currentTarget;
+  if(!panel)return;
+  const isOpen=panel.style.display!=="none";
+  if(isOpen){panel.style.display="none";btn.classList.remove("active");openEditId=null;}
+  else{
+    if(openEditId){const prev=document.getElementById(`edit-panel-${openEditId}`);if(prev)prev.style.display="none";document.querySelectorAll(".bedit.active").forEach(b=>b.classList.remove("active"));}
+    panel.style.display="block";btn.classList.add("active");openEditId=uid;
+  }
+}
+
+async function saveEditPanel(id,idx){
+  const entry=history[idx];if(!entry)return;
+  const btn=document.getElementById(`btn-save-${idx}`);
+  const msg=document.getElementById(`saved-msg-${idx}`);
+  btn.disabled=true;btn.innerHTML=`<div class="spinner" style="width:14px;height:14px;border-width:2px"></div> Desant…`;
+  const newProducts=entry.productos.map((p,pi)=>{
+    const inp=document.getElementById(`eprice-${idx}-${pi}`);if(!inp)return p;
+    const val=inp.value.trim();const num=val===""?null:parseFloat(val.replace(",","."));
+    return{...p,precio:(num!==null&&!isNaN(num))?+num.toFixed(3):p.precio};
+  });
+  history[idx]={...entry,productos:newProducts};
+  if(dbReady&&id&&id!==""){
+    try{const{error}=await sb.from("albarans").update({productos:newProducts}).eq("id",id);if(error)throw error;}
+    catch(e){btn.disabled=false;btn.innerHTML=`<span>💾</span> Desa els canvis`;alert("Error: "+e.message);return;}
+  }
+  document.querySelectorAll(`[id^="eprice-${idx}-"]`).forEach(inp=>inp.classList.remove("changed"));
+  btn.disabled=false;btn.innerHTML=`<span>💾</span> Desa els canvis`;
+  if(msg){msg.style.display="block";setTimeout(()=>msg.style.display="none",2500);}
+  renderHeader();
+}
+
+async function delEntry(id,i){
+  if(!confirm("Eliminar aquest albarà?"))return;
+  if(dbReady&&id){
+    await sb.from("albarans").delete().eq("id",id);
+    const e=history[i];
+    if(e?.foto_url){const path=e.foto_url.split("/").slice(-1)[0];await sb.storage.from(BUCKET).remove([path]);}
+  }
+  history.splice(i,1);openEditId=null;renderHeader();renderUpload();
+}
+
+// ── Productes ─────────────────────────────────────────
+let searchQ="",provSet=new Set(["__all__"]);
+const sparks={};
+
+function renderProductos(){
+  const wks=allWeekKeys(),provs=allProvs(),products=allProducts();
+  const filtered=products.filter(n=>{
+    if(searchQ&&!n.toLowerCase().includes(searchQ.toLowerCase()))return false;
+    if(!provSet.has("__all__")&&!productProviders(n).some(p=>provSet.has(p)))return false;
+    return true;
+  });
+  document.getElementById("pane-productos").innerHTML=`
+    <div class="filters">
+      <input class="search" placeholder="Cerca producte…" value="${searchQ}" oninput="searchQ=this.value;renderProductos()"/>
+      <button class="pfbtn all${provSet.has("__all__")?"":" off"}" onclick="toggleProv('__all__')">Tots</button>
+      ${provs.map(p=>`<button class="pfbtn${provSet.has(p)&&!provSet.has("__all__")?"":" off"}" style="background:${pc(p)}" onclick="toggleProv('${p.replace(/'/g,"\\'")}')">
+        ${p.split(" ")[0]}</button>`).join("")}
+    </div>
+    <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:14px">${filtered.length} productes</p>
+    <div class="cards-grid">${filtered.map(n=>cardHTML(n,wks)).join("")}</div>`;
+  filtered.forEach(name=>{
+    const cid=sparkId(name),canvas=document.getElementById(cid);
+    if(!canvas)return;
+    const vals=wks.map(wk=>weekAvgForProduct(name,wk));
+    if(vals.filter(v=>v!=null).length<2)return;
+    if(sparks[cid])sparks[cid].destroy();
+    const pts=vals.filter(v=>v!=null);
+    const col=pct(pts.at(-1),pts.at(-2))>ALERT_THR?"#c94040":pct(pts.at(-1),pts.at(-2))<-ALERT_THR?"#2a7a40":"#3a8ce8";
+    sparks[cid]=new Chart(canvas,{type:"line",data:{labels:wks,datasets:[{data:vals,borderColor:col,borderWidth:2,pointRadius:0,tension:.3,fill:false,spanGaps:true}]},options:{animation:false,responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+  });
+}
+
+function sparkId(n){return"sp"+btoa(encodeURIComponent(n)).replace(/[^a-zA-Z0-9]/g,"").slice(0,18);}
+
+function cardHTML(name,wks){
+  const prices=wks.map(wk=>weekAvgForProduct(name,wk));
+  const valid=prices.filter(p=>p!=null);
+  const last=valid.at(-1),prev=valid.at(-2);
+  const delta=prev!=null?pct(last,prev):null;
+  const isAlert=delta!==null&&delta>ALERT_THR;
+  const provs=productProviders(name);
+  const cid=sparkId(name);
+  let db="";if(delta!==null){const cls=delta>ALERT_THR?"d-up":delta<-ALERT_THR?"d-dn":"d-fl";db=`<span class="delta ${cls}">${delta>0?"+":""}${delta.toFixed(1)}%</span>`;}
+  const pbs=provs.map(p=>`<span class="pbadge" style="background:${pc(p)}">${p.split(" ")[0]}</span>`).join("");
+  const lastWkIdx=prices.map((p,i)=>p!=null?i:-1).filter(i=>i>=0).at(-1);
+  const lwl=lastWkIdx!=null?weekLabel(wks[lastWkIdx]):"";
+  return`<div class="card${isAlert?" is-alert":""}" onclick="openDetail('${name.replace(/'/g,"\\'")}')">
+    <div class="card-top"><div class="card-name" title="${name}">${name}</div>${db}</div>
+    <div class="card-price">${last!=null?last.toFixed(2)+" €":"—"}</div>
+    <div class="card-provs">${pbs}</div>
+    ${valid.length>1?`<div style="position:relative;height:55px"><canvas id="${cid}" class="spark"></canvas></div>`:`<p class="card-meta" style="margin-top:4px">Puja més albarans per veure evolució</p>`}
+    <p class="card-meta">${valid.length} set. · ${lwl}</p>
+  </div>`;
+}
+
+function toggleProv(p){
+  if(p==="__all__"){provSet=new Set(["__all__"]);}
+  else{provSet.delete("__all__");provSet.has(p)?provSet.delete(p):provSet.add(p);if(!provSet.size)provSet=new Set(["__all__"]);}
+  renderProductos();
+}
+
+// ── Detail modal ──────────────────────────────────────
+let detailChart=null;
+
+function openDetail(name){
+  renderDetailContent(name);
+  document.getElementById("modal-overlay").style.display="flex";
+}
+
+function renderDetailContent(name){
+  const daily=dailyPrices(name);
+  const provs=productProviders(name);
+  const pbs=provs.map(p=>`<span class="pbadge" style="background:${pc(p)}">${p}</span>`).join(" ");
+  document.getElementById("modal-content").innerHTML=`
+    <h2>${name}</h2>
+    <div class="prov-row" style="margin-top:6px">${pbs}</div>
+    <div class="detail-chart"><canvas id="dc"></canvas></div>
+    <table class="detail-table">
+      <thead><tr><th>Data</th><th>Preu</th><th>Var.</th><th>Proveïdor</th><th style="text-align:center">✏️</th></tr></thead>
+      <tbody>${daily.map((row,i)=>detailRowHTML(row,i,daily,name)).join("")}</tbody>
+    </table>`;
+  if(detailChart){detailChart.destroy();detailChart=null;}
+  detailChart=new Chart(document.getElementById("dc").getContext("2d"),{
+    type:"line",
+    data:{labels:daily.map(r=>r.fecha),datasets:[{data:daily.map(r=>r.precio),borderColor:"#1a4f8a",borderWidth:2,
+      pointBackgroundColor:daily.map((_,i)=>{if(i===0)return"#1a4f8a";const d=pct(daily[i].precio,daily[i-1].precio);return d>ALERT_THR?"#c94040":d<-ALERT_THR?"#2a7a40":"#1a4f8a";}),
+      pointRadius:5,tension:.3,fill:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>`${c.parsed.y.toFixed(2)} €`}}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{font:{size:10},callback:v=>`${v}€`}}}}
+  });
+}
+
+function detailRowHTML(row,i,daily,name){
+  const prev=daily[i-1]?.precio;
+  const d=prev!=null?pct(row.precio,prev):null;
+  const ds=d!=null?`<span style="color:${d>ALERT_THR?"var(--alert)":d<-ALERT_THR?"#2a7a40":"#ccc"}">${d>0?"+":""}${d.toFixed(1)}%</span>`:"—";
+  const dots=row.provs.map(p=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${pc(p)};margin-right:2px"></span>`).join("");
+  const fotoEntry=row.entries?.find(e=>e.foto_url);
+  const fotoBtn=fotoEntry?` <button class="edit-btn-inline" onclick="viewFoto('${fotoEntry.foto_url}',event)" title="Veure foto">🖼</button>`:"";
+  const entriesJson=JSON.stringify(row.entries).replace(/"/g,"&quot;");
+  return`<tr id="drow-${i}">
+    <td>${row.fecha}</td>
+    <td style="font-weight:700" id="dprice-${i}">${row.precio.toFixed(2)} €</td>
+    <td id="ddelta-${i}">${ds}</td>
+    <td style="font-family:'Syne',sans-serif;font-size:11px">${dots}${row.provs.map(p=>p.split(" ")[0]).join(", ")}${fotoBtn}</td>
+    <td style="text-align:center"><button class="edit-btn-inline" onclick="startInlineEdit(${i},'${name.replace(/'/g,"\\'")}',${entriesJson})">✏️</button></td>
+  </tr>`;
+}
+
+function startInlineEdit(rowIdx,name,entries){
+  const priceCell=document.getElementById(`dprice-${rowIdx}`);if(!priceCell)return;
+  const cur=parseFloat(priceCell.textContent);
+  const entriesJson=JSON.stringify(entries).replace(/"/g,"&quot;");
+  priceCell.innerHTML=`
+    <input class="price-edit-inline" id="iinp-${rowIdx}" type="number" step="0.001" min="0" value="${cur.toFixed(3)}"/>
+    <button class="btn-confirm-inline" onclick="confirmInlineEdit(${rowIdx},'${name.replace(/'/g,"\\'")}',${entriesJson})">✓</button>
+    <button class="btn-cancel-inline" onclick="cancelInlineEdit(${rowIdx},${cur})">✕</button>`;
+  const inp=document.getElementById(`iinp-${rowIdx}`);if(inp){inp.focus();inp.select();}
+}
+
+function cancelInlineEdit(rowIdx,old){const c=document.getElementById(`dprice-${rowIdx}`);if(c)c.innerHTML=`${old.toFixed(2)} €`;}
+
+async function confirmInlineEdit(rowIdx,name,entries){
+  const inp=document.getElementById(`iinp-${rowIdx}`);if(!inp)return;
+  const newPrice=parseFloat(inp.value.replace(",","."));
+  if(isNaN(newPrice)||newPrice<0){alert("Preu no vàlid");return;}
+  const priceCell=document.getElementById(`dprice-${rowIdx}`);
+  priceCell.innerHTML=`<div class="spinner" style="width:14px;height:14px;border-width:2px;display:inline-block"></div>`;
+  for(const entry of entries){
+    const hi=history.findIndex(h=>h.id===entry.id);if(hi===-1)continue;
+    const newProds=history[hi].productos.map(p=>p.nombre===name?{...p,precio:+newPrice.toFixed(3)}:p);
+    history[hi]={...history[hi],productos:newProds};
+    if(dbReady&&entry.id){
+      try{const{error}=await sb.from("albarans").update({productos:newProds}).eq("id",entry.id);if(error)throw error;}
+      catch(e){priceCell.innerHTML=`${newPrice.toFixed(2)} €`;alert("Error: "+e.message);return;}
+    }
+  }
+  priceCell.innerHTML=`${newPrice.toFixed(2)} € <span style="font-size:9px;color:#2a7a40">✓</span>`;
+  renderHeader();
+  const daily=dailyPrices(name);
+  daily.forEach((row,i)=>{
+    const prev=daily[i-1]?.precio;const d=prev!=null?pct(row.precio,prev):null;
+    const ds=d!=null?`<span style="color:${d>ALERT_THR?"var(--alert)":d<-ALERT_THR?"#2a7a40":"#ccc"}">${d>0?"+":""}${d.toFixed(1)}%</span>`:"—";
+    const dc2=document.getElementById(`ddelta-${i}`);if(dc2)dc2.innerHTML=ds;
+    const pc2=document.getElementById(`dprice-${i}`);if(pc2&&i!==rowIdx)pc2.innerHTML=`${row.precio.toFixed(2)} €`;
+  });
+  if(detailChart){detailChart.data.datasets[0].data=daily.map(r=>r.precio);detailChart.data.labels=daily.map(r=>r.fecha);detailChart.update();}
+}
+
+function closeModal(){document.getElementById("modal-overlay").style.display="none";if(detailChart){detailChart.destroy();detailChart=null;}}
+document.getElementById("modal-overlay").addEventListener("click",function(e){if(e.target===this)closeModal();});
+
+// ── Alertes ───────────────────────────────────────────
+function renderAlertes(){
+  const alerts=getAlerts();
+  const pane=document.getElementById("pane-alertas");
+  if(!alerts.length){pane.innerHTML=`<div class="empty"><div class="ico">✅</div><h3>Sense alertes actives</h3><p>Cap producte ha pujat més del ${ALERT_THR}% en l'última setmana</p></div>`;return;}
+  pane.innerHTML=`
+    <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:14px">${alerts.length} producte${alerts.length>1?"s":""} amb pujada &gt;${ALERT_THR}%</p>
+    ${alerts.map(a=>{
+      const pbs=a.provs.map(p=>`<span class="pbadge" style="background:${pc(p)};font-size:10px">${p}</span>`).join(" ");
+      return`<div class="alert-item" onclick="openDetail('${a.name.replace(/'/g,"\\'")}')">
+        <div>
+          <div style="font-size:14px;font-weight:800;margin-bottom:5px">${a.name}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">${pbs}</div>
+          <div style="font-size:12px;color:var(--muted)">
+            <span style="font-family:'DM Mono',monospace">${a.prev.toFixed(2)} €</span>
+            <span style="margin:0 6px;color:#ddd">→</span>
+            <strong style="font-family:'DM Mono',monospace;color:var(--text)">${a.last.toFixed(2)} €</strong>
+            <span style="margin-left:8px;font-size:10px">${weekLabel(a.wk)}</span>
+          </div>
+        </div>
+        <div class="alert-pct">+${a.d.toFixed(1)}%</div>
+      </div>`;
+    }).join("")}`;
+}
+
+// ── Evolució ──────────────────────────────────────────
+let evoChart=null;
+function renderEvolucion(){
+  const pane=document.getElementById("pane-evolucion");
+  const wks=allWeekKeys(),products=allProducts();
+  if(wks.length<2){pane.innerHTML=`<div class="empty"><div class="ico">📈</div><h3>Calen dades de 2 setmanes mínim</h3></div>`;return;}
+  const top=products.map(n=>({n,c:wks.filter(wk=>weekAvgForProduct(n,wk)!=null).length})).sort((a,b)=>b.c-a.c).slice(0,8).map(x=>x.n);
+  const cols=["#e85d3a","#1a4f8a","#2d7a3a","#8b2020","#5a3a8a","#1a6b7a","#8a4a10","#7a1a5a"];
+  const wkLabels=wks.map(weekLabel);
+  pane.innerHTML=`
+    <div class="chart-card">
+      <h3>Evolució setmanal — productes recurrents</h3>
+      <div class="ch-wrap"><canvas id="ec"></canvas></div>
+    </div>
+    <div class="tw"><table>
+      <thead><tr><th>Producte · Proveïdor</th>${wkLabels.map(l=>`<th>${l}</th>`).join("")}</tr></thead>
+      <tbody>${products.map(name=>{
+        const prices=wks.map(wk=>weekAvgForProduct(name,wk));
+        if(prices.every(p=>p==null))return"";
+        const provs=productProviders(name);
+        const dots=provs.map(p=>`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${pc(p)};margin-right:2px;vertical-align:middle"></span>`).join("");
+        return`<tr onclick="openDetail('${name.replace(/'/g,"\\'")}')">
+          <td title="${name}">${dots}${name}</td>
+          ${prices.map((p,i)=>{
+            if(p==null)return`<td><span style="color:#ddd">—</span></td>`;
+            const pv=prices.slice(0,i).filter(x=>x!=null).at(-1);
+            const d=pv!=null?pct(p,pv):null;
+            const sub=d!=null?`<span class="tsub ${d>ALERT_THR?"tu":d<-ALERT_THR?"tdn":"tfl"}">${d>0?"+":""}${d.toFixed(1)}%</span>`:"";
+            return`<td>${p.toFixed(2)}€${sub}</td>`;
+          }).join("")}
+        </tr>`;
+      }).join("")}</tbody>
+    </table></div>`;
+  if(evoChart){evoChart.destroy();evoChart=null;}
+  evoChart=new Chart(document.getElementById("ec").getContext("2d"),{
+    type:"line",
+    data:{labels:wkLabels,datasets:top.map((name,i)=>({label:name.length>25?name.slice(0,25)+"…":name,data:wks.map(wk=>weekAvgForProduct(name,wk)),borderColor:cols[i],backgroundColor:cols[i]+"20",borderWidth:2,pointRadius:4,tension:.3,spanGaps:true}))},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:10},boxWidth:10}}},scales:{x:{ticks:{font:{size:10}}},y:{ticks:{font:{size:10},callback:v=>`${v}€`}}}}
+  });
+}
+
+loadData();
+</script>
+</body>
+</html>
