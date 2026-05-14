@@ -575,7 +575,7 @@ async function handleFiles(files){
 function toB64(file){return new Promise((r,j)=>{const fr=new FileReader();fr.onload=()=>r(fr.result.split(",")[1]);fr.onerror=j;fr.readAsDataURL(file);});}
 
 async function callAI(b64,mt){
-  const res=await fetch("https://api.anthropic.com/v1/messages",{
+  const res=await fetch("/.netlify/functions/claude",{
     method:"POST",headers:{"Content-Type":"application/json"},
     body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1500,
       system:`Extreu dades d'albarans. Respon NOMÉS amb JSON vàlid sense markdown.
